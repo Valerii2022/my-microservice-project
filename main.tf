@@ -1,3 +1,5 @@
+
+
 module "s3_backend" {
   source      = "./modules/s3-backend"
   bucket_name = "lesson5-terraform-state-bucket"
@@ -18,3 +20,8 @@ module "ecr" {
   ecr_name     = "lesson-5-ecr"
   scan_on_push = true
 }
+
+provider "aws" {
+  region = "us-west-2"
+}
+
