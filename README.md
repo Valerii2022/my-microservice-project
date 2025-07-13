@@ -8,37 +8,63 @@
 
 ```
 lesson-7/
-├── main.tf # Головний Terraform файл
-├── backend.tf # Налаштування backend для Terraform state (S3 + DynamoDB)
-├── outputs.tf # Outputs для Terraform
-├── modules/ # Модулі Terraform
-│ ├── s3-backend/
-│ ├── vpc/
-│ ├── ecr/
-│ └── eks/
+├── main.tf                                  # Головний Terraform файл
+├── backend.tf                               # Налаштування backend для Terraform state (S3 + DynamoDB)
+├── outputs.tf                               # Outputs для Terraform
+├── modules/                                 # Каталог з усіма модулями
+│   ├── s3-backend/                          
+│   │   ├── s3.tf                            
+│   │   ├── dynamodb.tf            
+│   │   ├── variables.tf    
+│   │   └── outputs.tf       
+│   │
+│   ├── vpc/                 
+│   │   ├── vpc.tf          
+│   │   ├── routes.tf        
+│   │   ├── variables.tf     
+│   │   └── outputs.tf  
+│   ├── ecr/                 
+│   │   ├── ecr.tf           
+│   │   ├── variables.tf     
+│   │   └── outputs.tf       
+│   │
+│   ├── eks/                 
+│   │   ├── eks.tf           
+│   │   ├── variables.tf     
+│   │   └── outputs.tf       
+│
 ├── charts/
-│ └── django-app/ # Helm-чарт для розгортання Django-застосунку
-│ ├── Chart.yaml
-│ ├── values.yaml
-│ └── templates/
-│ ├── deployment.yaml
-│ ├── service.yaml
-│ ├── configmap.yaml
-│ └── hpa.yaml
-├── django-app/ # Код Django-застосунку
-│ ├── core/
-│ ├── manage.py
-│ ├── Dockerfile
-│ ├── requirements.txt
-│ └── nginx/
+│   └── django-app/                          # Helm-чарт для розгортання Django-застосунку
+│       ├── Chart.yaml
+│       ├── values.yaml
+│       └── templates/
+│           ├── deployment.yaml
+│           ├── service.yaml
+│           ├── configmap.yaml
+│           └── hpa.yaml
+├── django-app/                                # Код Django-застосунку
+│   ├── core/
+│   ├── manage.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── nginx/
 └── README.md
 ```
+
+## Використані технології
+
+- **Terraform** — для створення інфраструктури AWS (VPC, ECR, EKS).
+- **AWS ECR** — для зберігання Docker-образу.
+- **Docker** — для створення контейнера з Django.
+- **Kubernetes (EKS)** — для запуску Django у кластері.
+- **Helm** — для управління деплоєм.
 
 ## Виконані кроки
 
 1. **Створення кластера Kubernetes (EKS) через Terraform**
 
 - Описано модуль `eks` з конфігурацією кластера у існуючій VPC.
+- Кластер створений у VPC, яка була налаштована в попередньому ДЗ (модуль vpc/ з lesson-5).
 
 2. **Налаштування ECR для зберігання Docker-образу**
 
@@ -61,6 +87,8 @@ lesson-7/
 - Значення образу та змінних середовища передаються через values.yaml.
 
 5. **Застосунок використовує ConfigMap для env-перемінних.**
+
+- Змінні середовища взяті з lesson-4 і перенесені в charts/django-app/values.yaml у секцію env, а потім передаються через ConfigMap.
 
 6. **Service типу LoadBalancer надає доступ ззовні.**
 
@@ -101,12 +129,30 @@ lesson-7/
   aws eks --region us-west-2 update-kubeconfig --name <cluster_name>
   kubectl get nodes
 
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ECR_URL>
+  aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin <ECR_URL>
   docker tag django-app:latest <ECR_URL>/django-app:latest
   docker push <ECR_URL>/django-app:latest
 
   helm install django-app ./django-app
   ```
+
+### Перевірка доступу
+
+Після успішного деплою Helm:
+
+```bash
+kubectl get svc
+```
+Знайдіть у колонці EXTERNAL-IP адресу сервісу django-service
+Відкрийте в браузері: http://<EXTERNAL-IP>
+
+## Вимоги до середовища
+
+- AWS CLI налаштований з відповідними правами
+- Terraform 1.x
+- Docker встановлений
+- kubectl встановлений і налаштований
+- Helm 3.x
 
 
 
