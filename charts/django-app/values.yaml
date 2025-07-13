@@ -1,0 +1,20 @@
+image:
+  repository: 281025883997.dkr.ecr.us-west-2.amazonaws.com/django-app
+  tag: latest
+
+service:
+  type: LoadBalancer
+  port: 80
+
+env:
+  DJANGO_SETTINGS_MODULE: "core.settings"
+  DEBUG: "False"
+  SECRET_KEY: "django-insecure-123456"
+  ALLOWED_HOSTS: "*"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+

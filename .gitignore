@@ -1,1 +1,39 @@
+# === Terraform ===
+*.tfstate
+*.tfstate.*
 .terraform/
+crash.log
+override.tf
+override.tf.json
+terraform.tfvars
+terraform.tfvars.json
+.terraform.lock.hcl
+.plan
+
+# === Python / Django ===
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+*.env
+.env.*
+venv/
+dist/
+build/
+*.egg-info/
+
+# === Docker ===
+*.tar
+.dockerignore
+
+# === Helm ===
+charts/**/templates/*.tgz
+*.tgz
+
+# === VS Code, system files ===
+.vscode/
+.DS_Store
+.idea/
+*.swp
+*.swo
+
