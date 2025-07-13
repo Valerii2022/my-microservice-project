@@ -6,6 +6,7 @@
 
 ## Структура проєкту
 
+```
 lesson-7/
 ├── main.tf # Головний Terraform файл
 ├── backend.tf # Налаштування backend для Terraform state (S3 + DynamoDB)
@@ -31,6 +32,7 @@ lesson-7/
 │ ├── requirements.txt
 │ └── nginx/
 └── README.md
+```
 
 ## Виконані кроки
 
