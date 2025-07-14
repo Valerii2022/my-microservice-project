@@ -11,8 +11,8 @@
 -  Kaniko — для безпечної збірки контейнерів без root
 
 ## Структура проєкту
-
-lesson-7/
+```
+lesson-8-9/
 ├── main.tf # Головний Terraform файл
 ├── backend.tf # Налаштування backend для Terraform state (S3 + DynamoDB)
 ├── outputs.tf # Outputs для Terraform
