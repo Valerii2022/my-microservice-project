@@ -1,0 +1,6 @@
+appName: django-app
+repoURL: "https://github.com/Valerii2022/my-microservice-project.git"
+targetRevision: "main"
+path: "charts/django-app"
+namespace: "django-app"
+

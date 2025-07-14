@@ -1,8 +1,14 @@
-# Домашнє завдання Lesson 7 — Terraform, Kubernetes (EKS), Docker, Helm, ECR
+# Домашнє завдання Lesson 8-9 — CI/CD з Terraform + Jenkins + Argo CD + Helm
 
 ## Опис проєкту
 
-Проєкт демонструє створення інфраструктури AWS для Django-застосунку за допомогою Terraform, розгортання застосунку в Kubernetes (EKS) через Helm, а також роботу з Amazon ECR для зберігання Docker-образів.
+Цей проєкт реалізує повноцінний CI/CD-процес розгортання Django-застосунку на Kubernetes з використанням таких інструментів:
+-  Terraform — для управління інфраструктурою
+-  Helm — для деплою застосунку
+-  Jenkins — як CI-сервер
+-  Argo CD — як CD-система
+-  ECR — для зберігання Docker-образів
+-  Kaniko — для безпечної збірки контейнерів без root
 
 ## Структура проєкту
 
@@ -14,6 +20,8 @@ lesson-7/
 │ ├── s3-backend/
 │ ├── vpc/
 │ ├── ecr/
+│ ├── jenkins/
+│ ├── agro_cd/
 │ └── eks/
 ├── charts/
 │ └── django-app/ # Helm-чарт для розгортання Django-застосунку
@@ -30,89 +38,94 @@ lesson-7/
 │ ├── Dockerfile
 │ ├── requirements.txt
 │ └── nginx/
+├── Jenkinsfile
 └── README.md
 
-## Виконані кроки
+## Як застосувати Terraform
 
-1. **Створення кластера Kubernetes (EKS) через Terraform**
+1. Ініціалізуйте проєкт:
 
-- Описано модуль `eks` з конфігурацією кластера у існуючій VPC.
+```bash
+terraform init
+```
 
-2. **Налаштування ECR для зберігання Docker-образу**
+2. Перевірте план змін:
 
-- Модуль `ecr` створює репозиторій ECR.
-- Docker-образ Django побудований локально.
+```bash
+terraform plan
+```
 
-3. **Docker-образ**
+3. Запустіть створення інфраструктури:
 
-- Dockerfile розташований у `django-app/Dockerfile`.
-- Образ збирається командою:
+```bash
+terraform apply
+```
 
-  ```bash
-  docker build -t django-app .
-  ```
-
-4. **Helm-чарт**
-
-- Розміщений у charts/django-app.
-- Містить deployment.yaml, service.yaml, configmap.yaml, hpa.yaml.
-- Значення образу та змінних середовища передаються через values.yaml.
-
-5. **Застосунок використовує ConfigMap для env-перемінних.**
-
-6. **Service типу LoadBalancer надає доступ ззовні.**
-
-7. **HPA масштабує піди при навантаженні > 70%.**
-
-## Інструкції для перевірки
-
-### Перевірка Terraform
-
-  ```bash
-  terraform init
-  terraform plan
-  ```
-- Переконайтеся, що plan проходить без помилок.
-- Перевірте terraform output на наявність даних про кластер та ECR.
-
-### Перевірка Docker
-
-  ```bash
-  cd django-app
-  docker build -t django-app .
-  docker images | grep django-app
-  ```
-
-### Перевірка Helm
-
-  ```bash
-  cd charts
-  helm lint django-app
-  helm template django-app django-app
-  ```
-
-## Команди для деплою
-
-  ```bash
-  terraform apply
-
-  aws eks --region us-west-2 update-kubeconfig --name <cluster_name>
-  kubectl get nodes
-
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ECR_URL>
-  docker tag django-app:latest <ECR_URL>/django-app:latest
-  docker push <ECR_URL>/django-app:latest
-
-  helm install django-app ./django-app
-  ```
+Буде створено: S3, DynamoDB, VPC, EKS, ECR, Jenkins (через Helm), Argo CD (через Helm)
 
 
+## Як працює Jenkins pipeline (CI)
 
+Jenkins встановлюється через Helm та автоматично налаштовується за допомогою Terraform.
 
+- Використовується Kubernetes Agent з Kaniko.
+- Jenkinsfile автоматизує:
+  - Побудову Docker-образу з django-app/
+  - Публікацію в Amazon ECR
+  - Оновлення image.tag у charts/django-app/values.yaml
+  - Пуш змін у гілку main
 
+## Як працює Argo CD (CD)
 
+- Встановлюється через Helm автоматично (Terraform).
+- В Argo CD створено Application, яке стежить за Helm chart charts/django-app.
+- Кожне оновлення image.tag в репозиторії тригерить деплой в кластер.
 
+### Доступ до Argo CD
+- URL: https://<ARGO_CD_LOADBALANCER>
+- Логін: admin
+- Пароль: отримуємо з output:
 
+```bash
+terraform output argo_admin_password
+```
+
+## Як перевірити результат
+
+### У Jenkins:
+- Відкрити Jenkins через terraform output jenkins_url
+- Зайти в pipeline
+- Перевірити лог кожного етапу: збірка, пуш, git
+
+### У Argo CD:
+- Перейти в UI
+- Вибрати application django-app
+- Переконатись, що статус Synced ✅ і Healthy ✅
+
+### У кластері:
+
+```bash
+kubectl get pods
+kubectl get svc
+kubectl get hpa
+```
+### Примітки
+
+- ECR репозиторій створений у модулі ecr/
+- Kubernetes кластер створений у eks/
+- Jenkins і Argo CD через Helm
+- Стейт зберігається в s3-backend/
+
+## Посилання
+GitHub: https://github.com/Valerii2022/my-microservice-project/tree/lesson-8-9
+
+## Результат
+
+- Jenkins з Kaniko працює
+- Docker-образ збирається та пушиться в ECR
+- Helm chart оновлюється з новим тегом
+- Argo CD автоматично застосовує зміни
+- Django-додаток оновлюється в кластері
 
 
 

@@ -1,0 +1,9 @@
+server:
+  service:
+    type: ClusterIP
+  extraArgs:
+    - --insecure
+configs:
+  secret:
+    argocdServerAdminPassword: $2a$10$wAOWYyE6nYpF6CJv7L6HC.jEjDq6pycxLH5XBkm6ILJZAj42UXjlC  
+

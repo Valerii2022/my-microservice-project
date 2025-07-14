@@ -1,0 +1,5 @@
+apiVersion: v2
+name: argo-app
+description: Helm chart для Argo CD Application
+version: 0.1.0
+

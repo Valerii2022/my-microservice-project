@@ -1,0 +1,6 @@
+controller:
+  adminPassword: ""
+  serviceType: ClusterIP
+agent:
+  enabled: true
+

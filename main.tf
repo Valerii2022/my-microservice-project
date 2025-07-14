@@ -31,3 +31,30 @@ module "eks" {
   subnet_ids      = module.vpc.public_subnets
   cluster_name = "django-cluster"
 }
+
+provider "kubernetes" {
+  alias       = "jenkins"
+  config_path = "~/.kube/config"
+}
+
+provider "helm" {
+  alias = "jenkins"
+}
+
+module "jenkins" {
+  source        = "./modules/jenkins"
+  namespace     = "jenkins"
+  chart_version = "4.10.1"
+
+  providers = {
+    kubernetes = kubernetes.jenkins
+    helm       = helm.jenkins
+  }
+}
+
+module "argo_cd" {
+  source = "./modules/argo_cd"
+  cluster_name = module.eks.cluster_name
+  cluster_endpoint = module.eks.cluster_endpoint
+  cluster_ca_cert = module.eks.cluster_ca_cert
+}
