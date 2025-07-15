@@ -1,153 +1,97 @@
-# Домашнє завдання Lesson 8-9 — CI/CD з Terraform + Jenkins + Argo CD + Helm
+# RDS Terraform Module
 
-## Опис проєкту
+Цей модуль дозволяє створювати гнучкі та багаторазові бази даних у AWS:
 
-Цей проєкт реалізує повноцінний CI/CD-процес розгортання Django-застосунку на Kubernetes з використанням таких інструментів:
--  Terraform — для управління інфраструктурою
--  Helm — для деплою застосунку
--  Jenkins — як CI-сервер
--  Argo CD — як CD-система
--  ECR — для зберігання Docker-образів
--  Kaniko — для безпечної збірки контейнерів без root
+- Aurora Cluster (PostgreSQL або MySQL)
+- Звичайна RDS Instance (PostgreSQL або MySQL)
 
-## Структура проєкту
+## Функціональність
 
-lesson-7/
-├── main.tf # Головний Terraform файл
-├── backend.tf # Налаштування backend для Terraform state (S3 + DynamoDB)
-├── outputs.tf # Outputs для Terraform
-├── modules/ # Модулі Terraform
-│ ├── s3-backend/
-│ ├── vpc/
-│ ├── ecr/
-│ ├── jenkins/
-│ ├── agro_cd/
-│ └── eks/
-├── charts/
-│ └── django-app/ # Helm-чарт для розгортання Django-застосунку
-│ ├── Chart.yaml
-│ ├── values.yaml
-│ └── templates/
-│ ├── deployment.yaml
-│ ├── service.yaml
-│ ├── configmap.yaml
-│ └── hpa.yaml
-├── django-app/ # Код Django-застосунку
-│ ├── core/
-│ ├── manage.py
-│ ├── Dockerfile
-│ ├── requirements.txt
-│ └── nginx/
-├── Jenkinsfile
-└── README.md
+Автоматично створює:
 
-## Як застосувати Terraform
+- aws_db_subnet_group
+- aws_security_group
+- aws_db_parameter_group
+- А також або aws_db_instance, або aws_rds_cluster з writer instance
 
-1. Ініціалізуйте проєкт:
+Модуль налаштовується за допомогою змінної use_aurora.
+
+## Структура
+
+```
+modules/
+└── rds/
+    ├── aurora.tf
+    ├── rds.tf
+    ├── shared.tf
+    ├── outputs.tf
+    └── variables.tf
+```
+
+## Приклад використання
+
+```bash
+module "rds" {
+  source         = "./modules/rds"
+  name           = "my-rds"
+  use_aurora     = true
+  engine         = "aurora-postgresql"
+  engine_version = "15.4"
+  instance_class = "db.t3.medium"
+  username       = "admin"
+  password       = "SuperSecret123"
+  db_name        = "mydb"
+  vpc_id         = module.vpc.vpc_id
+  subnet_ids     = module.vpc.private_subnets
+  multi_az       = false }
+```
+
+## Як перемкнути тип бази даних
+
+| Параметр       | Значення для RDS   | Значення для Aurora              |
+| -------------- | ------------------ | -------------------------------- |
+| use_aurora     | false              | true                             |
+| engine         | postgres / mysql   | aurora-postgresql / aurora-mysql |
+| instance_class | db.t3.micro і вище | db.r6g.large і вище              |
+
+## Опис усіх змінних
+
+| Назва змінної  | Тип          | Опис                              | Обов’язково | За замовчуванням |
+| -------------- | ------------ | --------------------------------- | ----------- | ---------------- |
+| db_name        | string       | Назва бази даних                  | так         | —                |
+| username       | string       | Користувач БД                     | так         | —                |
+| password       | string       | Пароль БД                         | так         | —                |
+| engine         | string       | Тип БД                            | так         | —                |
+| engine_version | string       | Версія движка                     | так         | —                |
+| instance_class | string       | Клас інстансу                     | так         | —                |
+| subnet_ids     | list(string) | Список приватних сабнетів для БД  | так         | —                |
+| vpc_id         | string       | ID VPC                            | так         | —                |
+| use_aurora     | bool         | Чи використовувати Aurora Cluster | ні          | false            |
+| multi_az       | bool         | Multi-AZ для звичайної RDS        | ні          | false            |
+| name           | string       | Ім'я RDS або кластера             | ні          | -                |
+
+## Як перевірити
+
+1. Ініціалізуйте Terraform:
 
 ```bash
 terraform init
 ```
 
-2. Перевірте план змін:
+2. Перевірте план:
 
 ```bash
 terraform plan
 ```
 
-3. Запустіть створення інфраструктури:
+3. Якщо все ОК:
 
 ```bash
 terraform apply
 ```
 
-Буде створено: S3, DynamoDB, VPC, EKS, ECR, Jenkins (через Helm), Argo CD (через Helm)
+## Примітки
 
-
-## Як працює Jenkins pipeline (CI)
-
-Jenkins встановлюється через Helm та автоматично налаштовується за допомогою Terraform.
-
-- Використовується Kubernetes Agent з Kaniko.
-- Jenkinsfile автоматизує:
-  - Побудову Docker-образу з django-app/
-  - Публікацію в Amazon ECR
-  - Оновлення image.tag у charts/django-app/values.yaml
-  - Пуш змін у гілку main
-
-## Як працює Argo CD (CD)
-
-- Встановлюється через Helm автоматично (Terraform).
-- В Argo CD створено Application, яке стежить за Helm chart charts/django-app.
-- Кожне оновлення image.tag в репозиторії тригерить деплой в кластер.
-
-### Доступ до Argo CD
-- URL: https://<ARGO_CD_LOADBALANCER>
-- Логін: admin
-- Пароль: отримуємо з output:
-
-```bash
-terraform output argo_admin_password
-```
-
-## Як перевірити результат
-
-### У Jenkins:
-- Відкрити Jenkins через terraform output jenkins_url
-- Зайти в pipeline
-- Перевірити лог кожного етапу: збірка, пуш, git
-
-### У Argo CD:
-- Перейти в UI
-- Вибрати application django-app
-- Переконатись, що статус Synced ✅ і Healthy ✅
-
-### У кластері:
-
-```bash
-kubectl get pods
-kubectl get svc
-kubectl get hpa
-```
-### Примітки
-
-- ECR репозиторій створений у модулі ecr/
-- Kubernetes кластер створений у eks/
-- Jenkins і Argo CD через Helm
-- Стейт зберігається в s3-backend/
-
-## Посилання
-GitHub: https://github.com/Valerii2022/my-microservice-project/tree/lesson-8-9
-
-## Результат
-
-- Jenkins з Kaniko працює
-- Docker-образ збирається та пушиться в ECR
-- Helm chart оновлюється з новим тегом
-- Argo CD автоматично застосовує зміни
-- Django-додаток оновлюється в кластері
-
-
-
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- Модуль підтримує aurora-postgresql, aurora-mysql, postgres, mysql
+- Всі ресурси мають префікс із environment, щоб уникнути конфліктів
+- Ви можете підключити цей модуль до будь-якого існуючого VPC

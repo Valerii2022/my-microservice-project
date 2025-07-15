@@ -58,3 +58,18 @@ module "argo_cd" {
   cluster_endpoint = module.eks.cluster_endpoint
   cluster_ca_cert = module.eks.cluster_ca_cert
 }
+
+module "rds" {
+  source         = "./modules/rds"
+  name           = "my-rds"
+  use_aurora     = true
+  engine         = "aurora-postgresql"
+  engine_version = "15.4"
+  instance_class = "db.t3.medium"
+  username       = "admin"
+  password       = "SuperSecret123"
+  db_name        = "mydb"
+  vpc_id         = module.vpc.vpc_id
+  subnet_ids     = module.vpc.private_subnets
+  multi_az       = false
+}
