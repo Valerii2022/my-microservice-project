@@ -73,3 +73,7 @@ module "rds" {
   subnet_ids     = module.vpc.private_subnets
   multi_az       = false
 }
+
+module "monitoring" {
+  source = "./modules/monitoring"
+}

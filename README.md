@@ -1,97 +1,182 @@
-# RDS Terraform Module
+# 🧰 Final DevOps Project — AWS + Terraform + Kubernetes + CI/CD + Monitoring
 
-Цей модуль дозволяє створювати гнучкі та багаторазові бази даних у AWS:
+## 📝 Опис
 
-- Aurora Cluster (PostgreSQL або MySQL)
-- Звичайна RDS Instance (PostgreSQL або MySQL)
+Цей проєкт демонструє побудову повної інфраструктури в AWS за допомогою **Terraform**, з підтримкою **CI/CD (Jenkins + Argo CD)**, **Docker-контейнеризації**, **моніторингу (Prometheus + Grafana)** та деплоєм **Django застосунку** у **EKS кластер** через **Helm-чарти**.
 
-## Функціональність
+---
 
-Автоматично створює:
-
-- aws_db_subnet_group
-- aws_security_group
-- aws_db_parameter_group
-- А також або aws_db_instance, або aws_rds_cluster з writer instance
-
-Модуль налаштовується за допомогою змінної use_aurora.
-
-## Структура
+## 🗂 Структура проєкту
 
 ```
-modules/
-└── rds/
-    ├── aurora.tf
-    ├── rds.tf
-    ├── shared.tf
-    ├── outputs.tf
-    └── variables.tf
+project-root/
+├── main.tf
+├── backend.tf
+├── outputs.tf
+├── terraform.tfvars
+├── modules/
+│   ├── s3-backend/        # S3 + DynamoDB для Terraform state
+│   ├── vpc/               # VPC, Subnets, IGW, NAT, маршрути
+│   ├── ecr/               # Docker registry
+│   ├── eks/               # Kubernetes кластер
+│   ├── rds/               # Aurora або звичайна RDS база
+│   ├── jenkins/           # Helm chart для Jenkins (CI)
+│   ├── argo_cd/           # Helm chart для Argo CD (CD)
+│   └── monitoring/        # Helm chart для Prometheus + Grafana
+├── charts/
+│   └── django-app/        # Helm-чарт для розгортання Django-застосунку
+│     ├── Chart.yaml
+│     ├── values.yaml
+│     └── templates/
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       ├── configmap.yaml
+│       └── hpa.yaml
+├── django-app/             # Код Django-застосунку
+│   ├── core/
+│   ├── manage.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── nginx/
+├── Jenkinsfile             # CI pipeline
+└── README.md
 ```
 
-## Приклад використання
+---
 
-```bash
-module "rds" {
-  source         = "./modules/rds"
-  name           = "my-rds"
-  use_aurora     = true
-  engine         = "aurora-postgresql"
-  engine_version = "15.4"
-  instance_class = "db.t3.medium"
-  username       = "admin"
-  password       = "SuperSecret123"
-  db_name        = "mydb"
-  vpc_id         = module.vpc.vpc_id
-  subnet_ids     = module.vpc.private_subnets
-  multi_az       = false }
-```
+## 🧱 Основні модулі
 
-## Як перемкнути тип бази даних
+### 🔐 `s3-backend/`
+- S3 bucket з версіюванням для `terraform.tfstate`
+- DynamoDB table для state-locking
 
-| Параметр       | Значення для RDS   | Значення для Aurora              |
-| -------------- | ------------------ | -------------------------------- |
-| use_aurora     | false              | true                             |
-| engine         | postgres / mysql   | aurora-postgresql / aurora-mysql |
-| instance_class | db.t3.micro і вище | db.r6g.large і вище              |
+### 🌐 `vpc/`
+- CIDR: `10.0.0.0/16`
+- 3 публічні + 3 приватні сабнети
+- Internet Gateway + NAT Gateway
+- Route Tables
 
-## Опис усіх змінних
+### 📦 `ecr/`
+- Створює приватний Docker Registry
+- Увімкнене автоматичне сканування на вразливості
 
-| Назва змінної  | Тип          | Опис                              | Обов’язково | За замовчуванням |
-| -------------- | ------------ | --------------------------------- | ----------- | ---------------- |
-| db_name        | string       | Назва бази даних                  | так         | —                |
-| username       | string       | Користувач БД                     | так         | —                |
-| password       | string       | Пароль БД                         | так         | —                |
-| engine         | string       | Тип БД                            | так         | —                |
-| engine_version | string       | Версія движка                     | так         | —                |
-| instance_class | string       | Клас інстансу                     | так         | —                |
-| subnet_ids     | list(string) | Список приватних сабнетів для БД  | так         | —                |
-| vpc_id         | string       | ID VPC                            | так         | —                |
-| use_aurora     | bool         | Чи використовувати Aurora Cluster | ні          | false            |
-| multi_az       | bool         | Multi-AZ для звичайної RDS        | ні          | false            |
-| name           | string       | Ім'я RDS або кластера             | ні          | -                |
+### ☸️ `eks/`
+- Kubernetes кластер у приватних сабнетах
+- Створює node group, IAM ролі
+- Встановлює EBS CSI Driver
 
-## Як перевірити
+### 🛢 `rds/`
+- Підтримка Aurora PostgreSQL або звичайної RDS
+- Multi-AZ, параметри, subnet group, SG
 
-1. Ініціалізуйте Terraform:
+### 🔧 `jenkins/`
+- Helm chart Jenkins із pipeline agent (Kaniko)
+- Публікує Docker-образи в ECR
+- Оновлює image тег у Helm-чарті
+
+### 🚀 `argo_cd/`
+- Встановлення Argo CD через Helm
+- Деплой Helm-чарта django-app з Git-репозиторію
+
+### 📊 `monitoring/`
+- Встановлення Prometheus + Grafana (kube-prometheus-stack)
+- Grafana підключений до Prometheus автоматично
+- Порт-форвардинг: `kubectl port-forward svc/grafana 3000:80 -n monitoring`
+
+---
+
+## 🔁 CI/CD Flow
+
+1. **Jenkins**:
+   - Збирає Docker-образ з `django-app/`
+   - Пушить в Amazon ECR
+   - Оновлює Helm-чарт (image.tag)
+   - Git push в репозиторій (гілка main)
+
+2. **Argo CD**:
+   - Слідкує за репозиторієм
+   - Автоматично оновлює застосунок у кластері
+
+---
+
+## 🔎 Моніторинг (Prometheus + Grafana)
+
+- Grafana dashboards доступні локально:
+  ```bash
+  kubectl port-forward svc/grafana 3000:80 -n monitoring
+  ```
+- Логін: `admin`, Пароль: `prom-operator`
+- Метрики CPU, memory, pods, HPA
+
+---
+
+## ⚙️ Команди для запуску
+
+> Перед запуском: переконайтесь, що `aws configure` виконаний та вказано `terraform.tfvars`
 
 ```bash
 terraform init
-```
-
-2. Перевірте план:
-
-```bash
 terraform plan
-```
-
-3. Якщо все ОК:
-
-```bash
 terraform apply
 ```
 
-## Примітки
+### Доступ до EKS:
 
-- Модуль підтримує aurora-postgresql, aurora-mysql, postgres, mysql
-- Всі ресурси мають префікс із environment, щоб уникнути конфліктів
-- Ви можете підключити цей модуль до будь-якого існуючого VPC
+```bash
+aws eks --region <region> update-kubeconfig --name <cluster_name>
+kubectl get nodes
+```
+
+### Доступ до Jenkins:
+
+```bash
+kubectl port-forward svc/jenkins 8080:8080 -n jenkins
+```
+
+### Доступ до Argo CD:
+
+```bash
+kubectl port-forward svc/argocd-server 8081:443 -n argocd
+```
+
+### Доступ до Grafana:
+
+```bash
+kubectl port-forward svc/grafana 3000:80 -n monitoring
+```
+
+---
+
+## 🧪 Тестування застосунку
+
+```bash
+kubectl get svc
+```
+
+🔎 Відкрийте IP вашого `django-app` service типу `LoadBalancer` у браузері.
+
+---
+
+## 🧼 Видалення ресурсів
+
+```bash
+terraform destroy
+```
+
+> ⚠️ Після `destroy` потрібно заново створити `s3-backend` перед наступним `init`
+
+---
+
+## ✅ Результат
+
+- Повна інфраструктура в AWS через Terraform
+- Jenkins збирає та публікує Docker-образи
+- Argo CD автоматично оновлює Kubernetes-застосунок
+- Моніторинг через Prometheus + Grafana
+- Django-додаток розгорнутий через Helm
+
+---
+
+## 📎 Посилання
+
+- Репозиторій: [GitHub Final Branch](https://github.com/Valerii2022/my-microservice-project/tree/final_project)
